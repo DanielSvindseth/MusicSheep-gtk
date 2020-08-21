@@ -5,5 +5,5 @@ Music Sheep is an audio player built on electron.js and should be compatible wit
 
 [I take no responsibility for poor code or issues with security causing any kind of damages. This is just a hobby project and not meant for any production-usage. Do not use this if you are not okay with this.]
 
-![Screenshot1](/screenshots/screenshot-1.jpg?raw=true "Screenshot")
-![Screenshot2](/screenshots/screenshot-2.jpg?raw=true "Screenshot")
+![Screenshot1](/screenshots/screenshot-1.png?raw=true "Screenshot")
+![Screenshot2](/screenshots/screenshot-2.png?raw=true "Screenshot")
