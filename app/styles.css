@@ -1,0 +1,56 @@
+.color_background {
+  background-image: url('./color_background.png');
+}
+
+.main_layout_box {
+  background-position: bottom center;
+}
+
+.header_bar {
+  /*background-position: top center;*/
+  background-position: top left;
+  filter: brightness(0.9);
+}
+.controls_view_box {
+  background: #0000001f;
+}
+.bottom_box {
+  background-position: bottom center;
+  filter: brightness(0.9);
+}
+
+frame {
+  border-radius: 4px;
+  border: none;
+}
+.drop_shadow {
+  box-shadow: 2px 2px 10px #00000027;
+}
+.album_art_frame {
+  border: none;
+  border-radius: 8px;
+}
+.controls_play {
+  border: solid white 1px;
+  border-radius: 50%;
+}
+.controls_next {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-radius: 50%;
+}
+.controls_prev {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-radius: 50%;
+}
+
+list {
+  background: #0000003f;
+}
+
+list > *:hover {
+  background: #ffffff3f;
+}
+
+
