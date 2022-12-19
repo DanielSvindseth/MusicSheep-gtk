@@ -3,24 +3,74 @@
 import sys
 import gi
 import os
+import locale
+
+
 import mpv
-
-print(sys.path)
-
-# from pynput.keyboard import Key, Listener
+from pynput.keyboard import Key, Listener
 
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw
 
-class MainWindow(Gtk.ApplicationWindow):
+locale.setlocale(locale.LC_NUMERIC, 'C')
+
+class Window(Gtk.ApplicationWindow):
+    def __init__(self, *args, **kwargs):
+        super(Window, self).__init__(*args, **kwargs)
+        # custom CSS provider
+        self.css_provider = None
+
+    def load_css(self, css_fn):
+        print('Loading css...')
+        """create a provider for custom styling"""
+        if css_fn and os.path.exists(css_fn):
+            #print("css_fn and os.path.exists(css_fn)")
+            css_provider = Gtk.CssProvider()
+            try:
+                css_provider.load_from_path(css_fn)
+            except GLib.Error as e:
+                print(f"Error loading CSS : {e} ")
+                return None
+            print(f'loading custom styling : {css_fn}')
+            self.css_provider = css_provider
+
+    def _add_widget_styling(self, widget):
+        if self.css_provider:
+            #print("_add_widget_styling")
+            context = widget.get_style_context()
+            context.add_provider(
+                self.css_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+
+    def add_custom_styling(self, widget):
+        self._add_widget_styling(widget)
+        # iterate children recursive
+        for child in widget:
+            self.add_custom_styling(child)
+
+    def create_action(self, name, callback):
+        """ Add an Action and connect to a callback """
+        action = Gio.SimpleAction.new(name, None)
+        action.connect("activate", callback)
+        self.add_action(action)
+        
+
+class MainWindow(Window):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.set_default_size(960, 480)
+        self.connect("destroy", self.on_destroy)
+        
+        self.app_path = f'{os.getcwd()}/app'
+        print(self.app_path)
 
-        self.load_css('/app/share/musicsheep/musicsheep/styles.css')
+        #self.load_css('/app/share/musicsheep/musicsheep/styles.css') #flatpak
+        #self.load_css('styles.css') #relative path
+        #self.load_css('/home/svindseth/Programming/Music-Sheep/app/styles.css') #real path
+        self.load_css(f'{self.app_path}/styles.css')
+        
 
         self.headerbar = Gtk.HeaderBar(css_classes=['color_background', 'header_bar'])
         self.headerbar_label = Gtk.Label(label='Music Sheep')
@@ -32,10 +82,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.list_items = []
         self.list_item_labels = []
         
-        self.song = Song('')
 
         self.list_view()
 
+        self.speed = 1
+        self.player = mpv.MPV()
+        self.song = f'{self.app_path}/song.m4a' # mpv expects a string here, hmm
 
     # END OF __init__
     
@@ -51,7 +103,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.controls_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, vexpand=True, hexpand=True, valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER, spacing=30)
         self.controls_art_frame = Gtk.Frame(margin_top=30, margin_start=10, margin_end=10, valign=Gtk.Align.CENTER, width_request=192, height_request=192, css_classes=['album_art_frame', 'drop_shadow'])
         self._add_widget_styling(self.controls_art_frame)
-        self.controls_art = Gtk.Image(file='/app/share/musicsheep/musicsheep/art.png', valign=Gtk.Align.CENTER, height_request=200, css_classes=['album_art', 'img'])
+        self.controls_art = Gtk.Image(file=f'{self.app_path}/art_2.png', valign=Gtk.Align.CENTER, height_request=200, css_classes=['album_art', 'img'])
         self._add_widget_styling(self.controls_art)
         self.controls_controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, margin_bottom=30, margin_start=10, margin_end=10, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER, spacing=30, hexpand=True, css_classes=['play_controls', 'controls_box'])
         
@@ -62,10 +114,14 @@ class MainWindow(Gtk.ApplicationWindow):
         #self.controls_view_grid.insert_row(0)
         #self.controls_view_grid.insert_row(1)
         
+        
+        # PLAY BUTTON
         self.controls_play_button = Gtk.Button(has_frame=True, width_request=60, height_request=60, css_classes=['controls_play'])
         self.controls_play_icon_play = Gtk.Image(icon_name='media-playback-start-symbolic')
         self.controls_play_button.set_child(self.controls_play_icon_play)
         self._add_widget_styling(self.controls_play_button)
+        self.controls_play_button.connect('clicked', lambda controls_play_button: self.play_song())
+        
         
         self.controls_prev_button = Gtk.Button(has_frame=True, width_request=40, height_request=40, margin_top=10, margin_bottom=10, css_classes=['controls_prev'])
         self.controls_prev_icon_play = Gtk.Image(icon_name='go-previous-symbolic')
@@ -76,6 +132,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.controls_next_icon_play = Gtk.Image(icon_name='go-next-symbolic')
         self.controls_next_button.set_child(self.controls_next_icon_play)
         self._add_widget_styling(self.controls_next_button)
+        
         
         self.controls_controls.append(self.controls_prev_button)
         self.controls_controls.append(self.controls_play_button)
@@ -144,33 +201,29 @@ class MainWindow(Gtk.ApplicationWindow):
     def load_song(self, song):
         pass
     
-    def play_song(self):
+    def play_button(self):
+        #if self.player.
         pass
+    
+    def play_song(self):
+        self.player.play(self.song)
     
     def pause_song(self):
         pass
+        
+    #quick function to change speed via keyboard.
+    def on_press(key):
+    
+        if key.char == ']':
+            self.speed = self.speed + 0.1
+            self.player.speed = self.speed
+        if key.char == '[':
+            self.speed=self.speed - 0.1
+            self.player.speed = self.speed
+    
+    def on_destroy(self, widget, data=None):
+        self.mpv.terminate()
 
-    def load_css(self, css_fn):
-        """create a provider for custom styling"""
-        if css_fn and os.path.exists(css_fn):
-            css_provider = Gtk.CssProvider()
-            try:
-                css_provider.load_from_path(css_fn)
-            except GLib.Error as e:
-                print(f"Error loading CSS : {e} ")
-                return None
-            print(f'loading custom styling : {css_fn}')
-            self.css_provider = css_provider
-
-    # END OF load_css
-
-    def _add_widget_styling(self, widget):
-        if self.css_provider:
-            context = widget.get_style_context()
-            context.add_provider(
-                self.css_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
-
-    # END OF _add_widget_styling
 # END OF MainWindow
 
 class Song():
@@ -181,15 +234,19 @@ class Song():
         
 # END OF Song
 
-#class MyApp(Adw.Application):
-#    def __init__(self, **kwargs):
-#        super().__init__(**kwargs)
-#        self.connect('activate', self.on_activate)
-#
-#    def on_activate(self, app):
-#        self.win = MainWindow(application=app)
-#        self.win.present()
-#
-#
-#app = MyApp(application_id="net.svindseth.MusicSheep")
-#app.run(sys.argv)
+
+
+class SheepApp(Adw.Application):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.connect('activate', self.on_activate)
+
+    def on_activate(self, app):
+        self.win = MainWindow(application=app)
+        self.win.present()
+
+
+app = SheepApp(application_id="net.svindseth.MusicSheep")
+app.run(sys.argv)
+
+

@@ -1,12 +1,13 @@
+#!/bin/env python3
 
 import sys
 import gi
-
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-
 from gi.repository import Gtk, Gio, Adw
-from .app import MainWindow
+
+
+from app import MainWindow
 
 
 class MusicsheepApplication(Adw.Application):
