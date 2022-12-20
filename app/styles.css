@@ -23,6 +23,12 @@ frame {
   border-radius: 4px;
   border: none;
 }
+
+.frame {
+  border-radius: 4px;
+  border: none;
+}
+
 .drop_shadow {
   box-shadow: 2px 2px 10px #00000027;
 }
