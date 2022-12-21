@@ -228,7 +228,7 @@ class MainWindow(Window):
         self._add_widget_styling(self.list_view_list)
 
 
-        self.list_song_files(self.songs_dict) # list the files in ~/Music
+        self.list_song_files('4') # list the files in ~/Music
         #print(self.songs_dict)
         
         
@@ -263,7 +263,7 @@ class MainWindow(Window):
         for i in range(len(self.list_items)):
             self.list_view_list.append(self.list_items[i])
             
-        self.list_song_files(self.songs_dict) # list the files in ~/Music
+        self.list_song_files('4') # list the files in ~/Music
         #print(self.songs_dict)
 
     # END OF list_view
@@ -273,10 +273,14 @@ class MainWindow(Window):
     
     # END OF controls_view
 
-    def list_song_files(self, songs_dict):
+    def list_song_files(self, playlist):
         # Set the directory you want to list
         #directory = '/home/svindseth/Music'
         directory = self.music_path
+        if playlist != '0' or playlist != 0:
+            directory = f'{directory}/{playlist}'
+        
+        print(directory)
 
         # Use os.listdir to list all the files in the directory
         files = os.listdir(directory)
@@ -286,9 +290,7 @@ class MainWindow(Window):
         for i, file in enumerate(files):
             if file.endswith('.mp3') or file.endswith('.flac') or file.endswith('.m4a') or file.endswith('.opus') or file.endswith('.ogg') or file.endswith('.wav'):
                 index = index + 1
-                songs_dict[index] = file # add to dict
-        
-
+                self.songs_dict[index] = file # add to dict
 
     # END OF list_song_files
     
@@ -299,7 +301,7 @@ class MainWindow(Window):
     
     def load_song(self, song):
         print(song)
-        self.song = f'/home/svindseth/Music/{song}'
+        self.song = f'{self.music_path}/4/{song}'
         self.is_playing = True
         self.controls_play_button.set_child(self.controls_play_icon_pause)
         
