@@ -6,7 +6,7 @@ import os
 import locale
 
 
-#import mpv
+import mpv
 
 import pydub
 from pydub.playback import play, _play_with_simpleaudio
@@ -67,12 +67,10 @@ class MainWindow(Window):
         super().__init__(*args, **kwargs)
 
         self.set_default_size(960, 480)
-        #self.connect("size-allocate", self.on_size_allocate)
+        self.connect("destroy", self.on_destroy)
         
         self.window_height = self.get_height()
         self.window_width = self.get_width()
-        
-        #self.connect("destroy", self.on_destroy)
         
         self.app_path = f'{os.getcwd()}/app'
         self.music_path = f'{os.path.expanduser( "~" )}/Music'
@@ -98,16 +96,19 @@ class MainWindow(Window):
 
         self.list_view()
 
-        #self.speed = 1
-        #self.player = mpv.MPV()
-        #self.song = f'{self.app_path}/song.m4a' # mpv expects a string here, hmm
+        self.speed = 1
+        self.player = mpv.MPV(audio_pitch_correction=False, speed=0.75)
+        self.song = f'{self.app_path}/song.mp3' # mpv expects a string here, hmm
+        
+        #self.player.mpv_set_option('audio-pitch-correction', 'no') # chatgpt said this would work :(
+        #self.player.mpv_set_option('audio-pitch-correction', self.speed)
         
         self.audio_thread = 0
         self.pause_event = Event()
         self.playback = 0
         
-        self.song_file = pydub.AudioSegment.from_file('/home/svindseth/Music/Julespel-Track 02.mp3')
-        self.song = self.speed_change(self.song_file, 1.5)
+        #self.song_file = pydub.AudioSegment.from_file('/home/svindseth/Music/Julespel-Track 02.mp3')
+        #self.song = self.speed_change(self.song_file, 1.5)
         
         self.is_playing = False
 
@@ -280,30 +281,34 @@ class MainWindow(Window):
         self.is_playing = True
         self.controls_play_button.set_child(self.controls_play_icon_pause)
         
+        self.player.play(self.song)
+        
         #Thread(target=self.play_song(f'/home/svindseth/Music/{song}')).start()
         
-        _song = pydub.AudioSegment.from_file(self.song)
-        _song = self.speed_change(_song, 0.85)
-        self.playback = _play_with_simpleaudio(_song)
+        #_song = pydub.AudioSegment.from_file(self.song)
+        #_song = self.speed_change(_song, 0.85)
+        #self.playback = _play_with_simpleaudio(_song)
         
         #self.audio_thread = Thread(target=self.song_thread_func)
         #self.audio_thread.start()
         
-    def song_thread_func(self):
-        while True:
-            self.pause_event.wait() # wait for start signal
-            
-            self.is_playing = True
-            song = pydub.AudioSegment.from_file(self.song)
-            song = self.speed_change(song, 0.85) # speed modifier here <---
-            play(song)
-            #_play_with_simpleaudio(song)
-            
-            self.is_playing = False
-            self.pause_event.clear() # pause thread again
+    #def song_thread_func(self):
+    #    while True:
+    #        self.pause_event.wait() # wait for start signal
+    #        
+    #        self.is_playing = True
+    #        song = pydub.AudioSegment.from_file(self.song)
+    #        song = self.speed_change(song, 0.85) # speed modifier here <---
+    #        play(song)
+    #        #_play_with_simpleaudio(song)
+    #        
+    #        self.is_playing = False
+    #        self.pause_event.clear() # pause thread again
          
     
     def play_button(self):
+        
+        #self.player.play(self.song)
         
         if self.is_playing == True:
             self.pause_song()
@@ -312,13 +317,15 @@ class MainWindow(Window):
             self.play_song()
             self.controls_play_button.set_child(self.controls_play_icon_pause)
     
+    
     def play_song(self):
         self.is_playing = True
-        self.playback.resume()
-    
+        self.player.pause = False
+        
     def pause_song(self):
         self.is_playing = False
-        self.playback.stop()
+        self.player.pause = True
+        
         
     def speed_change(self, sound, speed=1.0):
         # Manually override the frame_rate. This tells the computer how many
@@ -345,7 +352,8 @@ class MainWindow(Window):
         # Start a new thread to play the song
         Thread(target=self.play_song).start()
       
-
+    def on_destroy(self, widget, data=None):
+        self.mpv.terminate()
 
 # END OF MainWindow
 
