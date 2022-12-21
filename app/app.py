@@ -92,12 +92,8 @@ class MainWindow(Window):
         self.list_items = []
         self.list_item_labels = []
         
-       
-
-        self.list_view()
-
         self.speed = 1
-        self.player = mpv.MPV(audio_pitch_correction=False, speed=0.75)
+        self.player = mpv.MPV(audio_pitch_correction=False, speed=self.speed)
         self.song = f'{self.app_path}/song.mp3' # mpv expects a string here, hmm
         
         #self.player.mpv_set_option('audio-pitch-correction', 'no') # chatgpt said this would work :(
@@ -111,6 +107,8 @@ class MainWindow(Window):
         #self.song = self.speed_change(self.song_file, 1.5)
         
         self.is_playing = False
+        
+        self.list_view() # Create App UI, no idea why I called it list_view. Might change later
 
     # END OF __init__
 
@@ -170,11 +168,35 @@ class MainWindow(Window):
         self.controls_controls.append(self.controls_prev_button)
         self.controls_controls.append(self.controls_play_button)
         self.controls_controls.append(self.controls_next_button)
+        
+        
+        # HEADER ITEMS
+        
+        self.speed_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, margin_start=10, margin_end=10)
+        self.speed_box_button_slower = Gtk.Button()
+        self.speed_box_button_slower_icon = Gtk.Image(icon_name='go-down-symbolic')
+        self.speed_box_button_slower.set_child(self.speed_box_button_slower_icon)
+        self.speed_box_button_slower.connect('clicked', lambda _: self.speed_slower())
+        self.speed_box_button_faster = Gtk.Button()
+        self.speed_box_button_faster_icon = Gtk.Image(icon_name='go-up-symbolic')
+        self.speed_box_button_faster.set_child(self.speed_box_button_faster_icon)
+        self.speed_box_button_faster.connect('clicked', lambda _: self.speed_faster())
+        
+        self.speed_label_box = Gtk.Box(margin_start=10, margin_end=10)
+        self.speed_label = Gtk.Label(label=str(self.speed))
+        self.speed_label_box.append(self.speed_label)
+        
+        self.speed_box.append(self.speed_box_button_slower)
+        self.speed_box.append(self.speed_label_box)
+        self.speed_box.append(self.speed_box_button_faster)
+        
+        self.headerbar.pack_end(self.speed_box)
+        
 
 
         # SONG LIST
         self.list_view_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, vexpand=True, valign=Gtk.Align.START)
-        self.list_view_frame = Gtk.ScrolledWindow(margin_start=10, margin_end=10, margin_top=10, margin_bottom=10, vexpand=True, vexpand_set=True, propagate_natural_height=True, propagate_natural_width=True, hscrollbar_policy=Gtk.PolicyType.EXTERNAL, has_frame=True)
+        self.list_view_frame = Gtk.ScrolledWindow(margin_start=10, margin_end=10, margin_top=10, margin_bottom=10, vexpand=True, vexpand_set=True, propagate_natural_height=True, propagate_natural_width=True, hscrollbar_policy=Gtk.PolicyType.NEVER, has_frame=True)
         self.list_view_list = Gtk.ListBox(vexpand=True)
 
         self.set_child(self.main_layout_box)
@@ -327,23 +349,25 @@ class MainWindow(Window):
         self.player.pause = True
         
         
-    def speed_change(self, sound, speed=1.0):
+    #def speed_change(self, sound, speed=1.0):
         # Manually override the frame_rate. This tells the computer how many
         # samples to play per second
-        sound_with_altered_frame_rate = sound._spawn(sound.raw_data, overrides={
-            "frame_rate": int(sound.frame_rate * speed)})
+    #    sound_with_altered_frame_rate = sound._spawn(sound.raw_data, overrides={
+    #        "frame_rate": int(sound.frame_rate * speed)})
         # convert the sound with altered frame rate to a standard frame rate
         # so that regular playback programs will work right. They often only
         # know how to play audio at standard frame rate (like 44.1k)
-        return sound_with_altered_frame_rate.set_frame_rate(sound.frame_rate)
+    #    return sound_with_altered_frame_rate.set_frame_rate(sound.frame_rate)
         
     def speed_slower(self):
-        self.speed = self.speed - 0.1
+        self.speed = self.speed - 0.05
         self.player.speed = self.speed 
+        self.speed_label.set_label(str(round(self.speed, 2)))
         
     def speed_faster(self):
-        self.speed = self.speed + 0.1
+        self.speed = self.speed + 0.05
         self.player.speed = self.speed 
+        self.speed_label.set_label(str(round(self.speed, 2)))
         
         
         
