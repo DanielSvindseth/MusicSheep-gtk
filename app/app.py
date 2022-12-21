@@ -6,7 +6,13 @@ import os
 import locale
 
 
-import mpv
+#import mpv
+
+import pydub
+from pydub.playback import play, _play_with_simpleaudio
+
+from threading import Thread, Event
+
 from pynput.keyboard import Key, Listener
 
 
@@ -66,7 +72,7 @@ class MainWindow(Window):
         self.window_height = self.get_height()
         self.window_width = self.get_width()
         
-        self.connect("destroy", self.on_destroy)
+        #self.connect("destroy", self.on_destroy)
         
         self.app_path = f'{os.getcwd()}/app'
         self.music_path = f'{os.path.expanduser( "~" )}/Music'
@@ -92,9 +98,17 @@ class MainWindow(Window):
 
         self.list_view()
 
-        self.speed = 1
-        self.player = mpv.MPV()
-        self.song = f'{self.app_path}/song.m4a' # mpv expects a string here, hmm
+        #self.speed = 1
+        #self.player = mpv.MPV()
+        #self.song = f'{self.app_path}/song.m4a' # mpv expects a string here, hmm
+        
+        self.audio_thread = 0
+        self.pause_event = Event()
+        self.playback = 0
+        
+        self.song_file = pydub.AudioSegment.from_file('/home/svindseth/Music/Julespel-Track 02.mp3')
+        self.song = self.speed_change(self.song_file, 1.5)
+        
         self.is_playing = False
 
     # END OF __init__
@@ -159,7 +173,7 @@ class MainWindow(Window):
 
         # SONG LIST
         self.list_view_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, vexpand=True, valign=Gtk.Align.START)
-        self.list_view_frame = Gtk.ScrolledWindow(margin_start=10, margin_end=10, margin_top=10, margin_bottom=10, vexpand=True, vexpand_set=True, propagate_natural_height=True, propagate_natural_width=True, hscrollbar_policy=Gtk.PolicyType.NEVER, has_frame=True)
+        self.list_view_frame = Gtk.ScrolledWindow(margin_start=10, margin_end=10, margin_top=10, margin_bottom=10, vexpand=True, vexpand_set=True, propagate_natural_height=True, propagate_natural_width=True, hscrollbar_policy=Gtk.PolicyType.EXTERNAL, has_frame=True)
         self.list_view_list = Gtk.ListBox(vexpand=True)
 
         self.set_child(self.main_layout_box)
@@ -262,11 +276,35 @@ class MainWindow(Window):
     
     def load_song(self, song):
         print(song)
-        self.player.play(f'/home/svindseth/Music/{song}')
+        self.song = f'/home/svindseth/Music/{song}'
         self.is_playing = True
         self.controls_play_button.set_child(self.controls_play_icon_pause)
+        
+        #Thread(target=self.play_song(f'/home/svindseth/Music/{song}')).start()
+        
+        _song = pydub.AudioSegment.from_file(self.song)
+        _song = self.speed_change(_song, 0.85)
+        self.playback = _play_with_simpleaudio(_song)
+        
+        #self.audio_thread = Thread(target=self.song_thread_func)
+        #self.audio_thread.start()
+        
+    def song_thread_func(self):
+        while True:
+            self.pause_event.wait() # wait for start signal
+            
+            self.is_playing = True
+            song = pydub.AudioSegment.from_file(self.song)
+            song = self.speed_change(song, 0.85) # speed modifier here <---
+            play(song)
+            #_play_with_simpleaudio(song)
+            
+            self.is_playing = False
+            self.pause_event.clear() # pause thread again
+         
     
     def play_button(self):
+        
         if self.is_playing == True:
             self.pause_song()
             self.controls_play_button.set_child(self.controls_play_icon_play)
@@ -275,25 +313,22 @@ class MainWindow(Window):
             self.controls_play_button.set_child(self.controls_play_icon_pause)
     
     def play_song(self):
-        self.player.pause = False
         self.is_playing = True
+        self.playback.resume()
     
     def pause_song(self):
-        self.player.pause = True
         self.is_playing = False
+        self.playback.stop()
         
-    #quick function to change speed via keyboard.
-    def on_press(key):
-    
-        if key.char == ']':
-            self.speed = self.speed + 0.1
-            self.player.speed = self.speed
-        if key.char == '[':
-            self.speed=self.speed - 0.1
-            self.player.speed = self.speed
-    
-    def on_destroy(self, widget, data=None):
-        self.mpv.terminate()
+    def speed_change(self, sound, speed=1.0):
+        # Manually override the frame_rate. This tells the computer how many
+        # samples to play per second
+        sound_with_altered_frame_rate = sound._spawn(sound.raw_data, overrides={
+            "frame_rate": int(sound.frame_rate * speed)})
+        # convert the sound with altered frame rate to a standard frame rate
+        # so that regular playback programs will work right. They often only
+        # know how to play audio at standard frame rate (like 44.1k)
+        return sound_with_altered_frame_rate.set_frame_rate(sound.frame_rate)
         
     def speed_slower(self):
         self.speed = self.speed - 0.1
@@ -302,6 +337,15 @@ class MainWindow(Window):
     def speed_faster(self):
         self.speed = self.speed + 0.1
         self.player.speed = self.speed 
+        
+        
+        
+    # TESTING of THREADING
+    def on_play_button_clicked(self):
+        # Start a new thread to play the song
+        Thread(target=self.play_song).start()
+      
+
 
 # END OF MainWindow
 
