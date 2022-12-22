@@ -5,22 +5,21 @@ import gi
 import os
 import locale
 
-
 import mpv
 
-import pydub
-from pydub.playback import play, _play_with_simpleaudio
+#import pydub
+#from pydub.playback import play, _play_with_simpleaudio
 
-from threading import Thread, Event
+#from threading import Thread, Event
 
 from pynput.keyboard import Key, Listener
 
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw
+from gi.repository import Gtk, Adw, Gdk
 
-locale.setlocale(locale.LC_NUMERIC, 'C')
+locale.setlocale(locale.LC_NUMERIC, 'C') # required for mpv. Gtk messes with this apparently
 
 class Window(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
@@ -83,30 +82,32 @@ class MainWindow(Window):
         
 
         self.headerbar = Gtk.HeaderBar(css_classes=['color_background', 'header_bar'])
-        self.headerbar_label = Gtk.Label(label='Music Sheep')
-
+        self.headerbar_label = Gtk.Label(label='Music Sheep', css_classes=['window-title'])
+        self._add_widget_styling(self.headerbar_label)
+        
         self.headerbar.set_title_widget(self.headerbar_label)
         self.set_titlebar(self.headerbar)
 
-        self.songs_dict = {}
+        self.songs_list = []
         self.list_items = []
         self.list_item_labels = []
         
-        self.speed = 1
-        self.player = mpv.MPV(audio_pitch_correction=False, speed=self.speed)
+        
+        
+        self.speed = 1.00
+        self.player = mpv.MPV(audio_pitch_correction=False, speed=self.speed, input_default_bindings=True, input_vo_keyboard=True)
         self.song = f'{self.app_path}/song.mp3' # mpv expects a string here, hmm
+        
+        
         
         #self.player.mpv_set_option('audio-pitch-correction', 'no') # chatgpt said this would work :(
         #self.player.mpv_set_option('audio-pitch-correction', self.speed)
         
-        self.audio_thread = 0
-        self.pause_event = Event()
-        self.playback = 0
-        
-        #self.song_file = pydub.AudioSegment.from_file('/home/svindseth/Music/Julespel-Track 02.mp3')
-        #self.song = self.speed_change(self.song_file, 1.5)
-        
         self.is_playing = False
+        
+        evk = Gtk.EventControllerKey.new()
+        evk.connect("key-pressed", self.key_press)
+        self.add_controller(evk)  # add to window
         
         self.list_view() # Create App UI, no idea why I called it list_view. Might change later
 
@@ -116,6 +117,15 @@ class MainWindow(Window):
 #        # Get the window height
 #        window_height = self.get_allocated_height()
 #        print(f'Window height: {window_height} pixels')
+
+    def key_press(self, event, keyval, keycode, state):
+        if keyval == Gdk.KEY_space or keyval == Gdk.KEY_k or keycode == 32:
+            self.play_button()
+            return True
+        if keyval == Gdk.KEY_q:
+            self.speed_slower()
+        if keyval == Gdk.KEY_w:
+            self.speed_faster()
 
     def list_view(self):
     
@@ -172,18 +182,23 @@ class MainWindow(Window):
         
         # HEADER ITEMS
         
-        self.speed_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, margin_start=10, margin_end=10)
-        self.speed_box_button_slower = Gtk.Button()
+        self.speed_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, margin_start=0, margin_end=0, css_classes=['speed-box'])
+        self._add_widget_styling(self.speed_box)
+        self.speed_box_button_slower = Gtk.Button(css_classes=['speed-button', 'speed-button-left'])
+        self._add_widget_styling(self.speed_box_button_slower)
         self.speed_box_button_slower_icon = Gtk.Image(icon_name='go-down-symbolic')
         self.speed_box_button_slower.set_child(self.speed_box_button_slower_icon)
         self.speed_box_button_slower.connect('clicked', lambda _: self.speed_slower())
-        self.speed_box_button_faster = Gtk.Button()
+        self.speed_box_button_faster = Gtk.Button(css_classes=['speed-button', 'speed-button-right'])
+        self._add_widget_styling(self.speed_box_button_faster)
         self.speed_box_button_faster_icon = Gtk.Image(icon_name='go-up-symbolic')
         self.speed_box_button_faster.set_child(self.speed_box_button_faster_icon)
         self.speed_box_button_faster.connect('clicked', lambda _: self.speed_faster())
         
-        self.speed_label_box = Gtk.Box(margin_start=10, margin_end=10)
-        self.speed_label = Gtk.Label(label=str(self.speed))
+        self.speed_label_box = Gtk.Box(margin_start=10, margin_end=10, width_request=30, css_classes=['speed-label-box'])
+        self._add_widget_styling(self.speed_label_box)
+        self.speed_label = Gtk.Label(label=str(f'{self.speed:.2f}'), css_classes=['speed-label'])
+        self._add_widget_styling(self.speed_label)
         self.speed_label_box.append(self.speed_label)
         
         self.speed_box.append(self.speed_box_button_slower)
@@ -228,25 +243,26 @@ class MainWindow(Window):
         self._add_widget_styling(self.list_view_list)
 
 
-        self.list_song_files('4') # list the files in ~/Music
-        #print(self.songs_dict)
+        self.list_song_files('4') # list the files in ~/Music # <-- Must run here before creating Gtk listRows
+        #print(self.songs_list)
         
         
-        #for i in range(len(self.songs_dict)):
-        for i, file in enumerate(self.songs_dict.values()):
+        #for i in range(len(self.songs_list)):
+        for i in range(len(self.songs_list)):
+            file = self.songs_list[i]['name']
             
             list_item_label = Gtk.Label(label=f'{i + 1} - {file}', halign=Gtk.Align.START, margin_start=2)
             self.list_item_labels.append(list_item_label)
             
             list_item_button = Gtk.Button(child=list_item_label)
-            list_item_button.connect('clicked', lambda _, index=i: self.load_song(self.songs_dict[index]))
+            list_item_button.connect('clicked', lambda _, index=i: self.load_song(self.songs_list[index]))
             
             list_item = Gtk.ListBoxRow(child=list_item_button)
             self._add_widget_styling(list_item)
             list_item.activatable = True
             
             
-            #list_item.connect('click', lambda _, index=i: self.load_song(self.songs_dict[index]))
+            #list_item.connect('click', lambda _, index=i: self.load_song(self.songs_list[index]))
             
             self.list_items.append(list_item)
 
@@ -264,7 +280,8 @@ class MainWindow(Window):
             self.list_view_list.append(self.list_items[i])
             
         self.list_song_files('4') # list the files in ~/Music
-        #print(self.songs_dict)
+        #print(self.songs_list)
+
 
     # END OF list_view
     
@@ -285,54 +302,39 @@ class MainWindow(Window):
         # Use os.listdir to list all the files in the directory
         files = os.listdir(directory)
 
-        # Iterate through the files and add only the music tracks to songs_dict
+        # Iterate through the files and add only the music tracks to songs_list
         index = -1 # No idea why this needs to be -1 and not 0
         for i, file in enumerate(files):
+            d = {}
             if file.endswith('.mp3') or file.endswith('.flac') or file.endswith('.m4a') or file.endswith('.opus') or file.endswith('.ogg') or file.endswith('.wav'):
                 index = index + 1
-                self.songs_dict[index] = file # add to dict
+                d['path'] = f'{directory}/{file}'
+                d['name'] = f'{file}'
+                print(d)
+                self.songs_list.append(d)
+                #self.songs_list[index] = file # add to list
 
     # END OF list_song_files
     
     def load_playlist(self, playlist):
-        pass
+        for i in range(len(self.songs_list)):
+            print(self.songs_list[i].path)
+            self.player.playlist_append(self.songs_list[i].path)
 
     # END OF load_playlist
     
     def load_song(self, song):
         print(song)
-        self.song = f'{self.music_path}/4/{song}'
+        self.song = f'{song["path"]}'
         self.is_playing = True
+        self.player.pause = False
         self.controls_play_button.set_child(self.controls_play_icon_pause)
         
         self.player.play(self.song)
         
-        #Thread(target=self.play_song(f'/home/svindseth/Music/{song}')).start()
-        
-        #_song = pydub.AudioSegment.from_file(self.song)
-        #_song = self.speed_change(_song, 0.85)
-        #self.playback = _play_with_simpleaudio(_song)
-        
-        #self.audio_thread = Thread(target=self.song_thread_func)
-        #self.audio_thread.start()
-        
-    #def song_thread_func(self):
-    #    while True:
-    #        self.pause_event.wait() # wait for start signal
-    #        
-    #        self.is_playing = True
-    #        song = pydub.AudioSegment.from_file(self.song)
-    #        song = self.speed_change(song, 0.85) # speed modifier here <---
-    #        play(song)
-    #        #_play_with_simpleaudio(song)
-    #        
-    #        self.is_playing = False
-    #        self.pause_event.clear() # pause thread again
          
     
     def play_button(self):
-        
-        #self.player.play(self.song)
         
         if self.is_playing == True:
             self.pause_song()
@@ -350,33 +352,19 @@ class MainWindow(Window):
         self.is_playing = False
         self.player.pause = True
         
-        
-    #def speed_change(self, sound, speed=1.0):
-        # Manually override the frame_rate. This tells the computer how many
-        # samples to play per second
-    #    sound_with_altered_frame_rate = sound._spawn(sound.raw_data, overrides={
-    #        "frame_rate": int(sound.frame_rate * speed)})
-        # convert the sound with altered frame rate to a standard frame rate
-        # so that regular playback programs will work right. They often only
-        # know how to play audio at standard frame rate (like 44.1k)
-    #    return sound_with_altered_frame_rate.set_frame_rate(sound.frame_rate)
-        
+
     def speed_slower(self):
         self.speed = self.speed - 0.05
         self.player.speed = self.speed 
-        self.speed_label.set_label(str(round(self.speed, 2)))
+        self.speed_label.set_label(f'{self.speed:.2f}')
         
     def speed_faster(self):
         self.speed = self.speed + 0.05
         self.player.speed = self.speed 
-        self.speed_label.set_label(str(round(self.speed, 2)))
+        self.speed_label.set_label(f'{self.speed:.2f}')
         
         
-        
-    # TESTING of THREADING
-    def on_play_button_clicked(self):
-        # Start a new thread to play the song
-        Thread(target=self.play_song).start()
+
       
     def on_destroy(self, widget, data=None):
         self.mpv.terminate()

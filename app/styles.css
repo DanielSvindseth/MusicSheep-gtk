@@ -1,3 +1,7 @@
+label {
+  font-family: lexend-deca, comic-sans;
+}
+
 .color_background {
   background-image: url('./color_background.png');
 }
@@ -11,6 +15,11 @@
   background-position: top left;
   filter: brightness(0.9);
 }
+
+.window-title {
+  font-weight: bold;
+}
+
 .controls_view_box {
   background: #0000001f;
 }
@@ -27,6 +36,30 @@ frame {
 .frame {
   border-radius: 4px;
   border: none;
+}
+
+.speed-box {
+  border: 1px solid white;
+  margin: 10px;
+  border-radius: 8px;
+}
+
+.speed-label {
+  font-weight: bold;
+}
+
+.speed-button {
+  margin: 0;
+}
+
+.speed-button-left {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.speed-button-right {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .drop_shadow {
